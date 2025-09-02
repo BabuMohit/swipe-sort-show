@@ -9,13 +9,15 @@ import { Button } from './ui/button';
 import { usePhotoSorting } from '@/hooks/usePhotoSorting';
 import { useToast } from '@/hooks/use-toast';
 import { PhotoStorage, UploadedPhoto } from '@/lib/photoStorage';
-import { FolderOpen } from 'lucide-react';
+import { FolderOpen, Image } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export function SortItApp() {
   const [showStats, setShowStats] = useState(false);
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
   const [showAlbums, setShowAlbums] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Transform photos for the sorting hook
   const photoData = photos.map(photo => ({
@@ -205,6 +207,16 @@ export function SortItApp() {
             
             <Button 
               variant="outline"
+              onClick={() => navigate('/gallery')}
+              className="w-full min-h-[44px]"
+              size="lg"
+            >
+              <Image className="w-4 h-4 mr-2" />
+              View Gallery
+            </Button>
+
+            <Button 
+              variant="outline"
               onClick={() => setShowAlbums(true)}
               className="w-full min-h-[44px]"
               size="lg"
@@ -266,6 +278,14 @@ export function SortItApp() {
                 className="min-h-[44px] px-3"
               >
                 ↶ Undo
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/gallery')}
+                className="min-h-[44px] px-3"
+              >
+                <Image className="w-4 h-4" />
               </Button>
               <Button
                 variant="outline"

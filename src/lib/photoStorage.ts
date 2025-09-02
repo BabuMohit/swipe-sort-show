@@ -37,10 +37,23 @@ export class PhotoStorage {
   static getPhotos(): UploadedPhoto[] {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : [];
+      if (!stored) return [];
+      
+      const parsed = JSON.parse(stored);
+      // Validate structure
+      if (!Array.isArray(parsed)) return [];
+      
+      return parsed.filter(photo => 
+        photo && 
+        typeof photo.id === 'string' &&
+        typeof photo.name === 'string' &&
+        typeof photo.dataUrl === 'string' &&
+        typeof photo.size === 'number' &&
+        typeof photo.uploadedAt === 'number'
+      );
     } catch (error) {
       console.error('Failed to load photos:', error);
-      throw new Error('Failed to load photos from storage.');
+      return [];
     }
   }
 
@@ -49,15 +62,24 @@ export class PhotoStorage {
     localStorage.removeItem(ALBUMS_KEY);
   }
 
-  // Album Management
   static getAlbums(): Album[] {
     try {
       const stored = localStorage.getItem(ALBUMS_KEY);
-      const albums = stored ? JSON.parse(stored) : this.getDefaultAlbums();
-      return albums;
+      if (!stored) return this.getDefaultAlbums();
+      
+      const parsed = JSON.parse(stored);
+      // Validate structure
+      if (!Array.isArray(parsed)) return this.getDefaultAlbums();
+      
+      return parsed.filter(album => 
+        album && 
+        typeof album.id === 'string' &&
+        typeof album.name === 'string' &&
+        Array.isArray(album.photos)
+      );
     } catch (error) {
       console.error('Failed to load albums:', error);
-      throw new Error('Failed to load albums from storage.');
+      return this.getDefaultAlbums();
     }
   }
 
@@ -152,6 +174,8 @@ export class PhotoStorage {
     const maxSize = 10 * 1024 * 1024; // 10MB
     
     const processedPhotos: UploadedPhoto[] = [];
+    const existingPhotos = this.getPhotos();
+    const existingNames = new Set(existingPhotos.map(p => p.name));
     
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -162,6 +186,11 @@ export class PhotoStorage {
       
       if (file.size > maxSize) {
         continue; // Skip large files
+      }
+      
+      // Skip duplicate file names
+      if (existingNames.has(file.name)) {
+        continue;
       }
       
       const dataUrl = await this.fileToDataUrl(file);
