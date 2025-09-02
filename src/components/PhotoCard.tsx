@@ -3,15 +3,24 @@ import { cn } from '@/lib/utils';
 
 interface PhotoCardProps {
   image: string;
-  onSwipeLeft: () => void;
-  onSwipeRight: () => void;
+  onSwipeLeft?: () => void;
+  onSwipeRight?: () => void;
+  onSwipeUp?: () => void;
+  onSwipeDown?: () => void;
   className?: string;
 }
 
-export function PhotoCard({ image, onSwipeLeft, onSwipeRight, className }: PhotoCardProps) {
+export function PhotoCard({ 
+  image, 
+  onSwipeLeft, 
+  onSwipeRight, 
+  onSwipeUp, 
+  onSwipeDown, 
+  className 
+}: PhotoCardProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [transform, setTransform] = useState({ x: 0, y: 0, rotation: 0 });
-  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
+  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | 'up' | 'down' | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const startPositionRef = useRef({ x: 0, y: 0 });
 
@@ -33,8 +42,15 @@ export function PhotoCard({ image, onSwipeLeft, onSwipeRight, className }: Photo
     setTransform({ x: deltaX, y: deltaY, rotation });
     
     // Visual feedback for swipe direction
-    if (Math.abs(deltaX) > 50) {
-      setSwipeDirection(deltaX > 0 ? 'right' : 'left');
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+    
+    if (absX > 50 || absY > 50) {
+      if (absX > absY) {
+        setSwipeDirection(deltaX > 0 ? 'right' : 'left');
+      } else {
+        setSwipeDirection(deltaY > 0 ? 'down' : 'up');
+      }
     } else {
       setSwipeDirection(null);
     }
@@ -44,15 +60,29 @@ export function PhotoCard({ image, onSwipeLeft, onSwipeRight, className }: Photo
     setIsDragging(false);
     
     const swipeThreshold = 150;
+    const absX = Math.abs(transform.x);
+    const absY = Math.abs(transform.y);
     
-    if (Math.abs(transform.x) > swipeThreshold) {
-      // Trigger swipe animation
-      if (transform.x > 0) {
-        setTransform({ x: window.innerWidth, y: transform.y, rotation: 15 });
-        setTimeout(onSwipeRight, 300);
+    if (absX > swipeThreshold || absY > swipeThreshold) {
+      // Determine which direction had the stronger movement
+      if (absX > absY) {
+        // Horizontal swipe
+        if (transform.x > 0) {
+          setTransform({ x: window.innerWidth, y: transform.y, rotation: 15 });
+          setTimeout(() => onSwipeRight?.(), 300);
+        } else {
+          setTransform({ x: -window.innerWidth, y: transform.y, rotation: -15 });
+          setTimeout(() => onSwipeLeft?.(), 300);
+        }
       } else {
-        setTransform({ x: -window.innerWidth, y: transform.y, rotation: -15 });
-        setTimeout(onSwipeLeft, 300);
+        // Vertical swipe
+        if (transform.y > 0) {
+          setTransform({ x: transform.x, y: window.innerHeight, rotation: 0 });
+          setTimeout(() => onSwipeDown?.(), 300);
+        } else {
+          setTransform({ x: transform.x, y: -window.innerHeight, rotation: 0 });
+          setTimeout(() => onSwipeUp?.(), 300);
+        }
       }
     } else {
       // Snap back to center
@@ -76,8 +106,15 @@ export function PhotoCard({ image, onSwipeLeft, onSwipeRight, className }: Photo
     
     setTransform({ x: deltaX, y: deltaY, rotation });
     
-    if (Math.abs(deltaX) > 50) {
-      setSwipeDirection(deltaX > 0 ? 'right' : 'left');
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+    
+    if (absX > 50 || absY > 50) {
+      if (absX > absY) {
+        setSwipeDirection(deltaX > 0 ? 'right' : 'left');
+      } else {
+        setSwipeDirection(deltaY > 0 ? 'down' : 'up');
+      }
     } else {
       setSwipeDirection(null);
     }
@@ -87,14 +124,26 @@ export function PhotoCard({ image, onSwipeLeft, onSwipeRight, className }: Photo
     setIsDragging(false);
     
     const swipeThreshold = 150;
+    const absX = Math.abs(transform.x);
+    const absY = Math.abs(transform.y);
     
-    if (Math.abs(transform.x) > swipeThreshold) {
-      if (transform.x > 0) {
-        setTransform({ x: window.innerWidth, y: transform.y, rotation: 15 });
-        setTimeout(onSwipeRight, 300);
+    if (absX > swipeThreshold || absY > swipeThreshold) {
+      if (absX > absY) {
+        if (transform.x > 0) {
+          setTransform({ x: window.innerWidth, y: transform.y, rotation: 15 });
+          setTimeout(() => onSwipeRight?.(), 300);
+        } else {
+          setTransform({ x: -window.innerWidth, y: transform.y, rotation: -15 });
+          setTimeout(() => onSwipeLeft?.(), 300);
+        }
       } else {
-        setTransform({ x: -window.innerWidth, y: transform.y, rotation: -15 });
-        setTimeout(onSwipeLeft, 300);
+        if (transform.y > 0) {
+          setTransform({ x: transform.x, y: window.innerHeight, rotation: 0 });
+          setTimeout(() => onSwipeDown?.(), 300);
+        } else {
+          setTransform({ x: transform.x, y: -window.innerHeight, rotation: 0 });
+          setTimeout(() => onSwipeUp?.(), 300);
+        }
       }
     } else {
       setTransform({ x: 0, y: 0, rotation: 0 });
@@ -114,6 +163,23 @@ export function PhotoCard({ image, onSwipeLeft, onSwipeRight, className }: Photo
     }
   }, [isDragging]);
 
+  const getSwipeIndicator = () => {
+    switch (swipeDirection) {
+      case 'right':
+        return { bg: 'bg-keep/20', icon: '❤️', label: 'Keep' };
+      case 'left':
+        return { bg: 'bg-discard/20', icon: '❌', label: 'Discard' };
+      case 'up':
+        return { bg: 'bg-primary/20', icon: '⬆️', label: 'Up' };
+      case 'down':
+        return { bg: 'bg-secondary/20', icon: '⬇️', label: 'Down' };
+      default:
+        return null;
+    }
+  };
+
+  const indicator = getSwipeIndicator();
+
   return (
     <div
       ref={cardRef}
@@ -123,6 +189,8 @@ export function PhotoCard({ image, onSwipeLeft, onSwipeRight, className }: Photo
         "transition-transform duration-300 ease-out",
         swipeDirection === 'right' && "ring-4 ring-keep/30",
         swipeDirection === 'left' && "ring-4 ring-discard/30",
+        swipeDirection === 'up' && "ring-4 ring-primary/30",
+        swipeDirection === 'down' && "ring-4 ring-secondary/30",
         className
       )}
       style={{
@@ -143,18 +211,13 @@ export function PhotoCard({ image, onSwipeLeft, onSwipeRight, className }: Photo
         />
         
         {/* Swipe indicators */}
-        {swipeDirection === 'right' && (
-          <div className="absolute inset-0 bg-keep/20 flex items-center justify-center">
-            <div className="bg-keep text-keep-foreground rounded-full p-4 animate-pulse-keep">
-              <span className="text-4xl">❤️</span>
-            </div>
-          </div>
-        )}
-        
-        {swipeDirection === 'left' && (
-          <div className="absolute inset-0 bg-discard/20 flex items-center justify-center">
-            <div className="bg-discard text-discard-foreground rounded-full p-4 animate-pulse-discard">
-              <span className="text-4xl">❌</span>
+        {indicator && (
+          <div className={`absolute inset-0 ${indicator.bg} flex items-center justify-center`}>
+            <div className="bg-white/90 text-black rounded-full p-4 animate-pulse">
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-4xl">{indicator.icon}</span>
+                <span className="text-sm font-medium">{indicator.label}</span>
+              </div>
             </div>
           </div>
         )}
@@ -162,7 +225,7 @@ export function PhotoCard({ image, onSwipeLeft, onSwipeRight, className }: Photo
       
       {/* Card info overlay */}
       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-        <p className="text-white text-sm opacity-75">Swipe to sort</p>
+        <p className="text-white text-sm opacity-75">Swipe in any direction</p>
       </div>
     </div>
   );

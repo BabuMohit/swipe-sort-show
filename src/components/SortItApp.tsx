@@ -9,13 +9,17 @@ import { Button } from './ui/button';
 import { usePhotoSorting } from '@/hooks/usePhotoSorting';
 import { useToast } from '@/hooks/use-toast';
 import { PhotoStorage, UploadedPhoto } from '@/lib/photoStorage';
-import { FolderOpen, Image } from 'lucide-react';
+import { FolderOpen, Image, Settings, Smartphone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { SwipeSettings } from './SwipeSettings';
+import { InstallGuide } from './InstallGuide';
 
 export function SortItApp() {
   const [showStats, setShowStats] = useState(false);
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
   const [showAlbums, setShowAlbums] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -66,9 +70,10 @@ export function SortItApp() {
         duration: 2000,
       });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to save uploaded photos";
       toast({
         title: "Upload Error",
-        description: "Failed to save uploaded photos",
+        description: errorMessage,
         variant: "destructive",
         duration: 3000,
       });
@@ -78,16 +83,18 @@ export function SortItApp() {
   const handleSwipeLeft = () => {
     try {
       const originalPhoto = photos.find(p => p.id === currentPhoto.id);
-      performAction('discard', originalPhoto);
+      performAction('left', originalPhoto);
+      const settings = PhotoStorage.getUserSettings();
+      const album = PhotoStorage.getAlbums().find(a => a.id === settings.swipeMappings.left);
       toast({
-        title: "Photo discarded",
-        description: "Moved to Archive",
+        title: "Photo sorted",
+        description: `Moved to ${album?.name || 'Album'}`,
         duration: 1500,
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to save to Archive",
+        description: "Failed to sort photo",
         variant: "destructive",
         duration: 3000,
       });
@@ -97,16 +104,60 @@ export function SortItApp() {
   const handleSwipeRight = () => {
     try {
       const originalPhoto = photos.find(p => p.id === currentPhoto.id);
-      performAction('keep', originalPhoto);
+      performAction('right', originalPhoto);
+      const settings = PhotoStorage.getUserSettings();
+      const album = PhotoStorage.getAlbums().find(a => a.id === settings.swipeMappings.right);
       toast({
-        title: "Photo kept",
-        description: "Added to Favorites",
+        title: "Photo sorted",
+        description: `Moved to ${album?.name || 'Album'}`,
         duration: 1500,
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to save to Favorites",
+        description: "Failed to sort photo",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+
+  const handleSwipeUp = () => {
+    try {
+      const originalPhoto = photos.find(p => p.id === currentPhoto.id);
+      performAction('up', originalPhoto);
+      const settings = PhotoStorage.getUserSettings();
+      const album = PhotoStorage.getAlbums().find(a => a.id === settings.swipeMappings.up);
+      toast({
+        title: "Photo sorted",
+        description: `Moved to ${album?.name || 'Album'}`,
+        duration: 1500,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sort photo",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+
+  const handleSwipeDown = () => {
+    try {
+      const originalPhoto = photos.find(p => p.id === currentPhoto.id);
+      performAction('down', originalPhoto);
+      const settings = PhotoStorage.getUserSettings();
+      const album = PhotoStorage.getAlbums().find(a => a.id === settings.swipeMappings.down);
+      toast({
+        title: "Photo sorted",
+        description: `Moved to ${album?.name || 'Album'}`,
+        duration: 1500,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sort photo",
         variant: "destructive",
         duration: 3000,
       });
@@ -207,6 +258,16 @@ export function SortItApp() {
             
             <Button 
               variant="outline"
+              onClick={() => setShowInstallGuide(true)}
+              className="w-full min-h-[48px]"
+              size="lg"
+            >
+              <Smartphone className="w-4 h-4 mr-2" />
+              Get Mobile App
+            </Button>
+            
+            <Button 
+              variant="outline"
               onClick={() => navigate('/gallery')}
               className="w-full min-h-[44px]"
               size="lg"
@@ -282,8 +343,18 @@ export function SortItApp() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => setShowSettings(true)}
+                className="min-h-[48px] px-3"
+                aria-label="Open settings"
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => navigate('/gallery')}
-                className="min-h-[44px] px-3"
+                className="min-h-[48px] px-3"
+                aria-label="Open gallery"
               >
                 <Image className="w-4 h-4" />
               </Button>
@@ -291,7 +362,8 @@ export function SortItApp() {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowAlbums(true)}
-                className="min-h-[44px] px-3"
+                className="min-h-[48px] px-3"
+                aria-label="Open albums"
               >
                 <FolderOpen className="w-4 h-4" />
               </Button>
@@ -299,7 +371,8 @@ export function SortItApp() {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowStats(!showStats)}
-                className="min-h-[44px] px-3"
+                className="min-h-[48px] px-3"
+                aria-label="Toggle statistics"
               >
                 📊
               </Button>
@@ -339,6 +412,8 @@ export function SortItApp() {
                 image={currentPhoto.dataUrl}
                 onSwipeLeft={handleSwipeLeft}
                 onSwipeRight={handleSwipeRight}
+                onSwipeUp={handleSwipeUp}
+                onSwipeDown={handleSwipeDown}
                 className="animate-bounce-in"
               />
             )}
@@ -353,11 +428,23 @@ export function SortItApp() {
           
           {/* Instructions */}
           <div className="text-center text-sm text-muted-foreground space-y-1">
-            <p>Swipe left to discard, right to keep</p>
+            <p>Swipe in any direction to sort photos</p>
             <p>Or use the buttons below</p>
           </div>
         </div>
       </main>
+      
+      {/* Settings Modals */}
+      <SwipeSettings
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        albums={PhotoStorage.getAlbums()}
+      />
+      
+      <InstallGuide
+        isOpen={showInstallGuide}
+        onClose={() => setShowInstallGuide(false)}
+      />
     </div>
   );
 }

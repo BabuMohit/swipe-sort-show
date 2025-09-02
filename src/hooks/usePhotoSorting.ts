@@ -30,14 +30,42 @@ export function usePhotoSorting(photos: { id: string; dataUrl: string; name: str
   const currentPhoto = photos[currentIndex];
   const isComplete = currentIndex >= photos.length;
 
-  const performAction = useCallback((action: 'keep' | 'discard', originalPhoto?: AlbumPhoto) => {
+  const performAction = useCallback((action: 'keep' | 'discard' | 'up' | 'down' | 'left' | 'right', originalPhoto?: AlbumPhoto) => {
     if (isAnimating || isComplete) return;
 
     setIsAnimating(true);
     
+    // Get user's swipe mappings
+    const settings = PhotoStorage.getUserSettings();
+    let targetAlbum: string;
+    
+    // Map swipe direction to album based on user settings
+    switch (action) {
+      case 'up':
+        targetAlbum = settings.swipeMappings.up;
+        break;
+      case 'down':
+        targetAlbum = settings.swipeMappings.down;
+        break;
+      case 'left':
+        targetAlbum = settings.swipeMappings.left;
+        break;
+      case 'right':
+        targetAlbum = settings.swipeMappings.right;
+        break;
+      case 'keep':
+        targetAlbum = 'favorites';
+        break;
+      case 'discard':
+        targetAlbum = 'archive';
+        break;
+      default:
+        targetAlbum = 'favorites';
+    }
+    
     const newAction: SortingAction = {
       photoId: currentPhoto.id,
-      action,
+      action: action === 'keep' || action === 'right' ? 'keep' : 'discard',
       timestamp: Date.now(),
       photoName: currentPhoto.name,
     };
@@ -47,8 +75,7 @@ export function usePhotoSorting(photos: { id: string; dataUrl: string; name: str
     // Save to appropriate album
     try {
       if (originalPhoto) {
-        const albumId = action === 'keep' ? 'favorites' : 'archive';
-        PhotoStorage.addPhotoToAlbum(albumId, originalPhoto);
+        PhotoStorage.addPhotoToAlbum(targetAlbum, originalPhoto);
       }
     } catch (error) {
       console.error('Failed to save to album:', error);

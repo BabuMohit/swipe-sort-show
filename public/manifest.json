@@ -9,6 +9,12 @@
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "en",
+  "protocol_handlers": [
+    {
+      "protocol": "lovable",
+      "url": "/?protocol=%s"
+    }
+  ],
   "categories": ["photography", "productivity", "utilities"],
   "icons": [
     {

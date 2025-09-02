@@ -1,3 +1,31 @@
+export interface SwipeMapping {
+  up: string;
+  down: string;
+  left: string;
+  right: string;
+}
+
+export const DEFAULT_SWIPE_MAPPINGS: SwipeMapping = {
+  up: 'favorites',
+  down: 'archive',
+  left: 'archive',
+  right: 'favorites'
+};
+
+export interface UserSettings {
+  swipeMappings: SwipeMapping;
+  enableNotifications: boolean;
+  autoBackup: boolean;
+}
+
+export interface SystemAlbum {
+  id: string;
+  name: string;
+  type: 'system' | 'custom';
+  photos: AlbumPhoto[];
+}
+
+// Extend existing interfaces
 export interface UploadedPhoto {
   id: string;
   name: string;
@@ -5,6 +33,8 @@ export interface UploadedPhoto {
   size: number;
   type: string;
   uploadedAt: number;
+  source?: 'camera' | 'upload' | 'system';
+  systemPath?: string;
 }
 
 export interface AlbumPhoto extends UploadedPhoto {
@@ -16,12 +46,14 @@ export interface Album {
   name: string;
   icon: string;
   photos: AlbumPhoto[];
+  type?: 'system' | 'custom';
 }
 
-export type AlbumType = 'favorites' | 'archive' | 'all' | 'recent';
+export type AlbumType = 'favorites' | 'archive' | 'all' | 'recent' | 'camera' | 'screenshots' | 'videos';
 
 const STORAGE_KEY = 'sortit_photos';
 const ALBUMS_KEY = 'sortit_albums';
+const SETTINGS_KEY = 'sortit_settings';
 
 export class PhotoStorage {
   static async savePhotos(photos: UploadedPhoto[]): Promise<boolean> {
@@ -29,6 +61,9 @@ export class PhotoStorage {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(photos));
       return true;
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        throw new Error('Storage quota exceeded. Please delete some photos or clear cache.');
+      }
       console.error('Failed to save photos:', error);
       throw new Error('Failed to save photos. Storage may be full or unavailable.');
     }
@@ -60,8 +95,60 @@ export class PhotoStorage {
   static clearPhotos(): void {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(ALBUMS_KEY);
+    localStorage.removeItem(SETTINGS_KEY);
   }
 
+  // Settings Management
+  static getUserSettings(): UserSettings {
+    try {
+      const stored = localStorage.getItem(SETTINGS_KEY);
+      if (!stored) return this.getDefaultSettings();
+      
+      const parsed = JSON.parse(stored);
+      // Validate structure
+      if (!parsed || typeof parsed !== 'object') return this.getDefaultSettings();
+      
+      return {
+        swipeMappings: this.validateSwipeMappings(parsed.swipeMappings) ? 
+          parsed.swipeMappings : DEFAULT_SWIPE_MAPPINGS,
+        enableNotifications: typeof parsed.enableNotifications === 'boolean' ? 
+          parsed.enableNotifications : true,
+        autoBackup: typeof parsed.autoBackup === 'boolean' ? 
+          parsed.autoBackup : false
+      };
+    } catch (error) {
+      console.error('Failed to load user settings:', error);
+      return this.getDefaultSettings();
+    }
+  }
+
+  static saveUserSettings(settings: UserSettings): boolean {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      return true;
+    } catch (error) {
+      console.error('Failed to save user settings:', error);
+      throw new Error('Failed to save settings. Storage may be full.');
+    }
+  }
+
+  private static getDefaultSettings(): UserSettings {
+    return {
+      swipeMappings: DEFAULT_SWIPE_MAPPINGS,
+      enableNotifications: true,
+      autoBackup: false
+    };
+  }
+
+  private static validateSwipeMappings(mappings: any): boolean {
+    if (!mappings || typeof mappings !== 'object') return false;
+    const directions = ['up', 'down', 'left', 'right'];
+    return directions.every(dir => 
+      typeof mappings[dir] === 'string' && mappings[dir].length > 0
+    );
+  }
+
+  // Album Management
   static getAlbums(): Album[] {
     try {
       const stored = localStorage.getItem(ALBUMS_KEY);
@@ -95,10 +182,13 @@ export class PhotoStorage {
 
   private static getDefaultAlbums(): Album[] {
     return [
-      { id: 'favorites', name: 'Favorites', icon: '❤️', photos: [] },
-      { id: 'archive', name: 'Archive', icon: '📁', photos: [] },
-      { id: 'all', name: 'All Photos', icon: '📷', photos: [] },
-      { id: 'recent', name: 'Recent', icon: '🕒', photos: [] },
+      { id: 'favorites', name: 'Favorites', icon: '❤️', photos: [], type: 'custom' },
+      { id: 'archive', name: 'Archive', icon: '📁', photos: [], type: 'custom' },
+      { id: 'all', name: 'All Photos', icon: '📷', photos: [], type: 'system' },
+      { id: 'recent', name: 'Recent', icon: '🕒', photos: [], type: 'system' },
+      { id: 'camera', name: 'Camera', icon: '📸', photos: [], type: 'system' },
+      { id: 'screenshots', name: 'Screenshots', icon: '📱', photos: [], type: 'system' },
+      { id: 'videos', name: 'Videos', icon: '🎥', photos: [], type: 'system' },
     ];
   }
 
@@ -169,6 +259,36 @@ export class PhotoStorage {
     }
   }
 
+  // System Album Integration
+  static async scanDeviceAlbums(): Promise<UploadedPhoto[]> {
+    try {
+      // PWA stub - in Median.co this will use native plugins
+      if (window.navigator && (window.navigator as any).album) {
+        return await (window.navigator as any).album.getPhotos();
+      }
+      
+      // File System Access API for modern browsers
+      if ('showDirectoryPicker' in window) {
+        return await this.scanWithFileSystemAPI();
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('Failed to scan device albums:', error);
+      return [];
+    }
+  }
+
+  private static async scanWithFileSystemAPI(): Promise<UploadedPhoto[]> {
+    try {
+      // This would require user permission
+      // For now, return empty array as it needs user interaction
+      return [];
+    } catch (error) {
+      return [];
+    }
+  }
+
   static async processFiles(files: FileList): Promise<UploadedPhoto[]> {
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     const maxSize = 10 * 1024 * 1024; // 10MB
@@ -202,6 +322,7 @@ export class PhotoStorage {
         size: file.size,
         type: file.type,
         uploadedAt: Date.now(),
+        source: 'upload'
       });
     }
     
