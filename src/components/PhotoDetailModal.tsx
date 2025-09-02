@@ -2,18 +2,22 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { AlbumPhoto } from '@/lib/photoStorage';
-import { X, Share, Calendar, HardDrive, FileText } from 'lucide-react';
+import { PhotoEditor } from './PhotoEditor';
+import { AlbumPhoto, PhotoStorage } from '@/lib/photoStorage';
+import { X, Share, Calendar, HardDrive, FileText, Edit, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import JSZip from 'jszip';
 
 interface PhotoDetailModalProps {
   photo: AlbumPhoto | null;
   isOpen: boolean;
   onClose: () => void;
+  onPhotoUpdated?: (updatedPhoto: AlbumPhoto) => void;
 }
 
-export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalProps) {
+export function PhotoDetailModal({ photo, isOpen, onClose, onPhotoUpdated }: PhotoDetailModalProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -38,18 +42,65 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
           files: [file]
         });
       } else {
-        // Fallback: copy image data URL to clipboard
-        await navigator.clipboard.writeText(photo.dataUrl);
+        // Fallback: create download link
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = photo.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
         toast({
-          title: "Copied to clipboard",
-          description: "Photo data copied to clipboard",
+          title: "Downloaded",
+          description: "Photo downloaded to your device",
           duration: 2000,
         });
       }
     } catch (error) {
+      console.error('Share/download failed:', error);
       toast({
-        title: "Share failed",
-        description: "Unable to share photo",
+        title: "Action failed",
+        description: "Unable to share or download photo",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+
+  const handleEditSave = async (editedDataUrl: string) => {
+    if (!photo) return;
+
+    try {
+      const updatedPhoto = { ...photo, dataUrl: editedDataUrl };
+      
+      // Update in storage
+      const photos = PhotoStorage.getPhotos();
+      const updatedPhotos = photos.map(p => p.id === photo.id ? updatedPhoto : p);
+      await PhotoStorage.savePhotos(updatedPhotos);
+      PhotoStorage.updateAllPhotosAlbum();
+      
+      // Update albums
+      const albums = PhotoStorage.getAlbums();
+      albums.forEach(album => {
+        album.photos = album.photos.map(p => p.id === photo.id ? updatedPhoto : p);
+      });
+      PhotoStorage.saveAlbums(albums);
+
+      setShowEditor(false);
+      onPhotoUpdated?.(updatedPhoto);
+      
+      toast({
+        title: "Photo updated",
+        description: "Your edits have been saved",
+        duration: 2000,
+      });
+    } catch (error) {
+      console.error('Failed to save edited photo:', error);
+      toast({
+        title: "Save Error",
+        description: "Failed to save photo edits",
         variant: "destructive",
         duration: 3000,
       });
@@ -75,6 +126,16 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
   };
 
   if (!photo) return null;
+
+  if (showEditor) {
+    return (
+      <PhotoEditor
+        imageDataUrl={photo.dataUrl}
+        onSave={handleEditSave}
+        onCancel={() => setShowEditor(false)}
+      />
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -147,9 +208,20 @@ export function PhotoDetailModal({ photo, isOpen, onClose }: PhotoDetailModalPro
                   onClick={handleShare}
                   className="w-full min-h-[48px] justify-start"
                   variant="outline"
+                  aria-label="Share or download photo"
                 >
                   <Share className="w-4 h-4 mr-2" />
                   Share Photo
+                </Button>
+                
+                <Button
+                  onClick={() => setShowEditor(true)}
+                  className="w-full min-h-[48px] justify-start"
+                  variant="outline"
+                  aria-label="Edit photo"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit Photo
                 </Button>
               </div>
             </div>

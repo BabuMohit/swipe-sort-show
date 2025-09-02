@@ -1,0 +1,15 @@
+{
+  "appId": "app.lovable.b0c1f919f97445429917eb05d5f1e846",
+  "appName": "swipe-sort-show",
+  "webDir": "dist",
+  "server": {
+    "url": "https://b0c1f919-f974-4542-9917-eb05d5f1e846.lovableproject.com?forceHideBadge=true",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  },
+  "ios": {
+    "contentInset": "automatic"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Sort It - Photo Manager",
+  "package_name": "app.lovable.b0c1f919f97445429917eb05d5f1e846",
+  "version": "1.0.0",
+  "bundle_id": "app.lovable.b0c1f919f97445429917eb05d5f1e846",
+  "app_name": "Sort It",
+  "display_name": "Sort It",
+  "description": "AI-powered photo sorting and organization app with swipe gestures",
+  "orientation": "portrait",
+  "status_bar": {
+    "background_color": "#000000",
+    "text_color": "light"
+  },
+  "splash_screen": {
+    "background_color": "#000000",
+    "text_color": "light"
+  },
+  "permissions": [
+    "CAMERA",
+    "READ_EXTERNAL_STORAGE",
+    "WRITE_EXTERNAL_STORAGE"
+  ],
+  "build_settings": {
+    "target_sdk": 33,
+    "min_sdk": 21
+  }
+}

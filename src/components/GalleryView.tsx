@@ -7,7 +7,8 @@ import { PhotoDetailModal } from './PhotoDetailModal';
 import { PhotoStorage, AlbumPhoto, Album } from '@/lib/photoStorage';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Search, Filter, CheckSquare, Square, Share, Trash2, FolderOpen } from 'lucide-react';
+import { ArrowLeft, Search, Filter, CheckSquare, Square, Share, Trash2, FolderOpen, Download } from 'lucide-react';
+import JSZip from 'jszip';
 
 interface GalleryViewProps {
   onBackToSorting: () => void;
@@ -161,7 +162,7 @@ export function GalleryView({ onBackToSorting }: GalleryViewProps) {
       if (navigator.share) {
         // Convert photos to files for sharing
         const files = await Promise.all(
-          photosToShare.map(async (photo) => {
+          photosToShare.slice(0, 10).map(async (photo) => { // Limit to 10 files for compatibility
             const response = await fetch(photo.dataUrl);
             const blob = await response.blob();
             return new File([blob], photo.name, { type: photo.type });
@@ -174,16 +175,70 @@ export function GalleryView({ onBackToSorting }: GalleryViewProps) {
             text: `Sharing ${selectedPhotos.size} photos from Sort It`,
             files
           });
-        } else {
-          throw new Error('Sharing not supported');
+          return;
         }
-      } else {
-        throw new Error('Web Share API not available');
       }
+      
+      // Fallback: Create ZIP file for download
+      await handleExportAlbum(photosToShare);
     } catch (error) {
+      console.error('Share failed:', error);
       toast({
         title: "Share failed",
         description: "Unable to share selected photos",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  }, [selectedPhotos, displayedPhotos, toast]);
+
+  const handleExportAlbum = useCallback(async (photosToExport?: AlbumPhoto[]) => {
+    try {
+      const photos = photosToExport || displayedPhotos.filter(p => selectedPhotos.has(p.id));
+      
+      if (photos.length === 0) {
+        toast({
+          title: "No photos selected",
+          description: "Select photos to export",
+          duration: 2000,
+        });
+        return;
+      }
+
+      const zip = new JSZip();
+      
+      // Add photos to ZIP
+      await Promise.all(
+        photos.map(async (photo) => {
+          const response = await fetch(photo.dataUrl);
+          const blob = await response.blob();
+          zip.file(photo.name, blob);
+        })
+      );
+
+      // Generate ZIP file
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      
+      // Create download link
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sort-it-photos-${new Date().toISOString().slice(0, 10)}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Album exported",
+        description: `${photos.length} photos downloaded as ZIP`,
+        duration: 2000,
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast({
+        title: "Export failed",
+        description: "Unable to export photos",
         variant: "destructive",
         duration: 3000,
       });
@@ -264,11 +319,12 @@ export function GalleryView({ onBackToSorting }: GalleryViewProps) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 min-h-[48px]"
+                aria-label="Search photos"
               />
             </div>
             
             <Select value={selectedAlbum} onValueChange={setSelectedAlbum}>
-              <SelectTrigger className="w-full sm:w-48 min-h-[48px]">
+              <SelectTrigger className="w-full sm:w-48 min-h-[48px]" aria-label="Filter by album">
                 <Filter className="w-4 h-4 mr-2" />
                 <SelectValue />
               </SelectTrigger>
@@ -281,6 +337,16 @@ export function GalleryView({ onBackToSorting }: GalleryViewProps) {
                 ))}
               </SelectContent>
             </Select>
+
+            <Button
+              variant="outline"
+              onClick={() => handleExportAlbum()}
+              className="min-h-[48px] px-4"
+              aria-label="Export selected photos"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
           </div>
 
           {/* Batch Actions */}
@@ -291,6 +357,7 @@ export function GalleryView({ onBackToSorting }: GalleryViewProps) {
                 size="sm"
                 onClick={handleSelectAll}
                 className="min-h-[48px]"
+                aria-label={selectedPhotos.size === displayedPhotos.length ? "Deselect all photos" : "Select all photos"}
               >
                 {selectedPhotos.size === displayedPhotos.length ? (
                   <CheckSquare className="w-4 h-4 mr-2" />

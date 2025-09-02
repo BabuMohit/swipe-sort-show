@@ -1,35 +1,40 @@
 {
-  "name": "Sort It - Photo Sorting App",
+  "name": "Sort It - Photo Manager",
   "short_name": "Sort It",
-  "description": "Mobile-first photo sorting web app with swipe gestures",
+  "description": "AI-powered photo sorting and organization app with intuitive swipe gestures",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f0f23",
-  "theme_color": "#8b5cf6",
+  "background_color": "#000000",
+  "theme_color": "#6366f1",
   "orientation": "portrait-primary",
-  "categories": ["photo", "productivity", "utilities"],
+  "scope": "/",
   "lang": "en",
-  "dir": "ltr",
+  "categories": ["photography", "productivity", "utilities"],
   "icons": [
     {
-      "src": "/placeholder.svg",
+      "src": "/manifest-icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "maskable any"
     },
     {
-      "src": "/placeholder.svg", 
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "/manifest-icon-512.png",
+      "sizes": "512x512", 
+      "type": "image/png",
+      "purpose": "maskable any"
     }
   ],
   "screenshots": [
     {
-      "src": "/placeholder.svg",
-      "sizes": "375x812",
-      "type": "image/svg+xml",
+      "src": "/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
       "form_factor": "narrow"
     }
-  ]
+  ],
+  "features": [
+    "cross-platform",
+    "offline-capable"
+  ],
+  "prefer_related_applications": false
 }
