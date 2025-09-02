@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { PhotoStorage, AlbumPhoto } from '@/lib/photoStorage';
 
 export interface SortingAction {
   photoId: string;
@@ -29,7 +30,7 @@ export function usePhotoSorting(photos: { id: string; dataUrl: string; name: str
   const currentPhoto = photos[currentIndex];
   const isComplete = currentIndex >= photos.length;
 
-  const performAction = useCallback((action: 'keep' | 'discard') => {
+  const performAction = useCallback((action: 'keep' | 'discard', originalPhoto?: AlbumPhoto) => {
     if (isAnimating || isComplete) return;
 
     setIsAnimating(true);
@@ -42,6 +43,12 @@ export function usePhotoSorting(photos: { id: string; dataUrl: string; name: str
     };
 
     setHistory(prev => [...prev, newAction]);
+    
+    // Save to appropriate album
+    if (originalPhoto) {
+      const albumId = action === 'keep' ? 'favorites' : 'archive';
+      PhotoStorage.addPhotoToAlbum(albumId, originalPhoto);
+    }
     
     // Simulate animation delay
     setTimeout(() => {

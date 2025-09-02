@@ -4,14 +4,17 @@ import { ActionButtons } from './ActionButtons';
 import { ProgressIndicator } from './ProgressIndicator';
 import { StatsPanel } from './StatsPanel';
 import { PhotoUpload } from './PhotoUpload';
+import { AlbumView } from './AlbumView';
 import { Button } from './ui/button';
 import { usePhotoSorting } from '@/hooks/usePhotoSorting';
 import { useToast } from '@/hooks/use-toast';
 import { PhotoStorage, UploadedPhoto } from '@/lib/photoStorage';
+import { FolderOpen } from 'lucide-react';
 
 export function SortItApp() {
   const [showStats, setShowStats] = useState(false);
   const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
+  const [showAlbums, setShowAlbums] = useState(false);
   const { toast } = useToast();
 
   // Transform photos for the sorting hook
@@ -37,26 +40,31 @@ export function SortItApp() {
   useEffect(() => {
     const savedPhotos = PhotoStorage.getPhotos();
     setPhotos(savedPhotos);
+    // Update album data when photos change
+    PhotoStorage.updateAllPhotosAlbum();
   }, []);
 
   const handlePhotosUploaded = (uploadedPhotos: UploadedPhoto[]) => {
     setPhotos(uploadedPhotos);
+    PhotoStorage.updateAllPhotosAlbum();
   };
 
   const handleSwipeLeft = () => {
-    performAction('discard');
+    const originalPhoto = photos.find(p => p.id === currentPhoto.id);
+    performAction('discard', originalPhoto);
     toast({
       title: "Photo discarded",
-      description: "Swiped left to discard",
+      description: "Moved to Archive",
       duration: 1500,
     });
   };
 
   const handleSwipeRight = () => {
-    performAction('keep');
+    const originalPhoto = photos.find(p => p.id === currentPhoto.id);
+    performAction('keep', originalPhoto);
     toast({
       title: "Photo kept",
-      description: "Swiped right to keep",
+      description: "Added to Favorites",
       duration: 1500,
     });
   };
@@ -81,6 +89,11 @@ export function SortItApp() {
       duration: 1500,
     });
   };
+
+  // Show album view
+  if (showAlbums) {
+    return <AlbumView onBackToSorting={() => setShowAlbums(false)} />;
+  }
 
   // Show upload screen if no photos
   if (photos.length === 0) {
@@ -150,6 +163,16 @@ export function SortItApp() {
             
             <Button 
               variant="outline"
+              onClick={() => setShowAlbums(true)}
+              className="w-full min-h-[44px]"
+              size="lg"
+            >
+              <FolderOpen className="w-4 h-4 mr-2" />
+              View Albums
+            </Button>
+            
+            <Button 
+              variant="outline"
               onClick={() => setShowStats(!showStats)}
               className="w-full min-h-[44px]"
               size="lg"
@@ -201,6 +224,14 @@ export function SortItApp() {
                 className="min-h-[44px] px-3"
               >
                 ↶ Undo
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAlbums(true)}
+                className="min-h-[44px] px-3"
+              >
+                <FolderOpen className="w-4 h-4" />
               </Button>
               <Button
                 variant="outline"
