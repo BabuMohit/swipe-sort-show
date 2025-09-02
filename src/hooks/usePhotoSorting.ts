@@ -45,9 +45,14 @@ export function usePhotoSorting(photos: { id: string; dataUrl: string; name: str
     setHistory(prev => [...prev, newAction]);
     
     // Save to appropriate album
-    if (originalPhoto) {
-      const albumId = action === 'keep' ? 'favorites' : 'archive';
-      PhotoStorage.addPhotoToAlbum(albumId, originalPhoto);
+    try {
+      if (originalPhoto) {
+        const albumId = action === 'keep' ? 'favorites' : 'archive';
+        PhotoStorage.addPhotoToAlbum(albumId, originalPhoto);
+      }
+    } catch (error) {
+      console.error('Failed to save to album:', error);
+      // Don't block the UI, just log the error
     }
     
     // Simulate animation delay

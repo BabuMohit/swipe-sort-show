@@ -24,12 +24,13 @@ const STORAGE_KEY = 'sortit_photos';
 const ALBUMS_KEY = 'sortit_albums';
 
 export class PhotoStorage {
-  static async savePhotos(photos: UploadedPhoto[]): Promise<void> {
+  static async savePhotos(photos: UploadedPhoto[]): Promise<boolean> {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(photos));
+      return true;
     } catch (error) {
       console.error('Failed to save photos:', error);
-      throw new Error('Storage full or unavailable');
+      throw new Error('Failed to save photos. Storage may be full or unavailable.');
     }
   }
 
@@ -39,7 +40,7 @@ export class PhotoStorage {
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
       console.error('Failed to load photos:', error);
-      return [];
+      throw new Error('Failed to load photos from storage.');
     }
   }
 
@@ -56,16 +57,17 @@ export class PhotoStorage {
       return albums;
     } catch (error) {
       console.error('Failed to load albums:', error);
-      return this.getDefaultAlbums();
+      throw new Error('Failed to load albums from storage.');
     }
   }
 
-  static saveAlbums(albums: Album[]): void {
+  static saveAlbums(albums: Album[]): boolean {
     try {
       localStorage.setItem(ALBUMS_KEY, JSON.stringify(albums));
+      return true;
     } catch (error) {
       console.error('Failed to save albums:', error);
-      throw new Error('Storage full or unavailable');
+      throw new Error('Failed to save albums. Storage may be full or unavailable.');
     }
   }
 
@@ -78,54 +80,71 @@ export class PhotoStorage {
     ];
   }
 
-  static addPhotoToAlbum(albumId: string, photo: AlbumPhoto): void {
-    const albums = this.getAlbums();
-    const album = albums.find(a => a.id === albumId);
-    
-    if (album) {
-      // Remove photo if it already exists to avoid duplicates
-      album.photos = album.photos.filter(p => p.id !== photo.id);
-      album.photos.unshift({ ...photo, sortedAt: Date.now() });
-      this.saveAlbums(albums);
+  static addPhotoToAlbum(albumId: string, photo: AlbumPhoto): boolean {
+    try {
+      const albums = this.getAlbums();
+      const album = albums.find(a => a.id === albumId);
+      
+      if (album) {
+        // Remove photo if it already exists to avoid duplicates
+        album.photos = album.photos.filter(p => p.id !== photo.id);
+        album.photos.unshift({ ...photo, sortedAt: Date.now() });
+        return this.saveAlbums(albums);
+      }
+      return false;
+    } catch (error) {
+      console.error(`Failed to add photo to album ${albumId}:`, error);
+      throw new Error(`Failed to add photo to ${albumId} album.`);
     }
   }
 
-  static removePhotoFromAlbum(albumId: string, photoId: string): void {
-    const albums = this.getAlbums();
-    const album = albums.find(a => a.id === albumId);
-    
-    if (album) {
-      album.photos = album.photos.filter(p => p.id !== photoId);
-      this.saveAlbums(albums);
+  static removePhotoFromAlbum(albumId: string, photoId: string): boolean {
+    try {
+      const albums = this.getAlbums();
+      const album = albums.find(a => a.id === albumId);
+      
+      if (album) {
+        album.photos = album.photos.filter(p => p.id !== photoId);
+        return this.saveAlbums(albums);
+      }
+      return false;
+    } catch (error) {
+      console.error(`Failed to remove photo from album ${albumId}:`, error);
+      throw new Error(`Failed to remove photo from ${albumId} album.`);
     }
   }
 
-  static updateAllPhotosAlbum(): void {
-    const photos = this.getPhotos();
-    const albums = this.getAlbums();
-    const allPhotosAlbum = albums.find(a => a.id === 'all');
-    const recentAlbum = albums.find(a => a.id === 'recent');
-    
-    if (allPhotosAlbum) {
-      allPhotosAlbum.photos = photos.map(photo => ({
-        ...photo,
-        sortedAt: photo.uploadedAt,
-      }));
-    }
-    
-    if (recentAlbum) {
-      // Recent shows last 50 photos by upload time
-      const recentPhotos = photos
-        .sort((a, b) => b.uploadedAt - a.uploadedAt)
-        .slice(0, 50)
-        .map(photo => ({
+  static updateAllPhotosAlbum(): boolean {
+    try {
+      const photos = this.getPhotos();
+      const albums = this.getAlbums();
+      const allPhotosAlbum = albums.find(a => a.id === 'all');
+      const recentAlbum = albums.find(a => a.id === 'recent');
+      
+      if (allPhotosAlbum) {
+        allPhotosAlbum.photos = photos.map(photo => ({
           ...photo,
           sortedAt: photo.uploadedAt,
         }));
-      recentAlbum.photos = recentPhotos;
+      }
+      
+      if (recentAlbum) {
+        // Recent shows last 20 photos by upload time
+        const recentPhotos = photos
+          .sort((a, b) => b.uploadedAt - a.uploadedAt)
+          .slice(0, 20)
+          .map(photo => ({
+            ...photo,
+            sortedAt: photo.uploadedAt,
+          }));
+        recentAlbum.photos = recentPhotos;
+      }
+      
+      return this.saveAlbums(albums);
+    } catch (error) {
+      console.error('Failed to update album data:', error);
+      throw new Error('Failed to update album data.');
     }
-    
-    this.saveAlbums(albums);
   }
 
   static async processFiles(files: FileList): Promise<UploadedPhoto[]> {

@@ -15,13 +15,22 @@ export function AlbumView({ onBackToSorting }: AlbumViewProps) {
   const { toast } = useToast();
 
   const handleRemovePhoto = (albumId: string, photoId: string) => {
-    PhotoStorage.removePhotoFromAlbum(albumId, photoId);
-    setAlbums(PhotoStorage.getAlbums());
-    toast({
-      title: "Photo removed",
-      description: "Photo removed from album",
-      duration: 1500,
-    });
+    try {
+      PhotoStorage.removePhotoFromAlbum(albumId, photoId);
+      setAlbums(PhotoStorage.getAlbums());
+      toast({
+        title: "Photo removed",
+        description: "Photo removed from album",
+        duration: 1500,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to remove photo from album",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
   };
 
   const currentAlbum = albums.find(a => a.id === activeAlbum);
@@ -56,7 +65,7 @@ export function AlbumView({ onBackToSorting }: AlbumViewProps) {
                 variant={activeAlbum === album.id ? "default" : "outline"}
                 size="sm"
                 onClick={() => setActiveAlbum(album.id)}
-                className="min-h-[44px] px-4 whitespace-nowrap relative"
+                className="min-h-[48px] px-4 whitespace-nowrap relative"
               >
                 <span className="mr-2">{album.icon}</span>
                 {album.name}
@@ -132,10 +141,23 @@ interface PhotoThumbnailProps {
 
 function PhotoThumbnail({ photo, albumId, onRemove, canRemove }: PhotoThumbnailProps) {
   const [showRemove, setShowRemove] = useState(false);
+  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
 
   const handleLongPress = () => {
     if (canRemove) {
       setShowRemove(true);
+    }
+  };
+
+  const handleTouchStart = () => {
+    const timer = setTimeout(handleLongPress, 500);
+    setLongPressTimer(timer);
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
     }
   };
 
@@ -151,9 +173,9 @@ function PhotoThumbnail({ photo, albumId, onRemove, canRemove }: PhotoThumbnailP
         e.preventDefault();
         handleLongPress();
       }}
-      onTouchStart={() => {
-        setTimeout(handleLongPress, 500);
-      }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onMouseLeave={handleTouchEnd}
       onClick={() => setShowRemove(false)}
     >
       <img
@@ -172,7 +194,7 @@ function PhotoThumbnail({ photo, albumId, onRemove, canRemove }: PhotoThumbnailP
               e.stopPropagation();
               handleRemove();
             }}
-            className="min-h-[36px]"
+            className="min-h-[48px] px-4"
           >
             Remove
           </Button>
@@ -188,7 +210,7 @@ function PhotoThumbnail({ photo, albumId, onRemove, canRemove }: PhotoThumbnailP
               e.stopPropagation();
               handleRemove();
             }}
-            className="w-6 h-6 p-0 text-xs"
+            className="w-8 h-8 p-0 text-xs rounded-full min-h-[32px]"
           >
             ×
           </Button>

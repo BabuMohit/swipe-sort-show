@@ -38,35 +38,77 @@ export function SortItApp() {
 
   // Load photos on mount
   useEffect(() => {
-    const savedPhotos = PhotoStorage.getPhotos();
-    setPhotos(savedPhotos);
-    // Update album data when photos change
-    PhotoStorage.updateAllPhotosAlbum();
-  }, []);
+    try {
+      const savedPhotos = PhotoStorage.getPhotos();
+      setPhotos(savedPhotos);
+      // Update album data when photos change
+      PhotoStorage.updateAllPhotosAlbum();
+    } catch (error) {
+      toast({
+        title: "Storage Error",
+        description: "Failed to load photos from storage",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  }, [toast]);
 
-  const handlePhotosUploaded = (uploadedPhotos: UploadedPhoto[]) => {
-    setPhotos(uploadedPhotos);
-    PhotoStorage.updateAllPhotosAlbum();
+  const handlePhotosUploaded = async (uploadedPhotos: UploadedPhoto[]) => {
+    try {
+      await PhotoStorage.savePhotos(uploadedPhotos);
+      setPhotos(uploadedPhotos);
+      PhotoStorage.updateAllPhotosAlbum();
+      toast({
+        title: "Photos uploaded",
+        description: `${uploadedPhotos.length} photos imported successfully`,
+        duration: 2000,
+      });
+    } catch (error) {
+      toast({
+        title: "Upload Error",
+        description: "Failed to save uploaded photos",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
   };
 
   const handleSwipeLeft = () => {
-    const originalPhoto = photos.find(p => p.id === currentPhoto.id);
-    performAction('discard', originalPhoto);
-    toast({
-      title: "Photo discarded",
-      description: "Moved to Archive",
-      duration: 1500,
-    });
+    try {
+      const originalPhoto = photos.find(p => p.id === currentPhoto.id);
+      performAction('discard', originalPhoto);
+      toast({
+        title: "Photo discarded",
+        description: "Moved to Archive",
+        duration: 1500,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save to Archive",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
   };
 
   const handleSwipeRight = () => {
-    const originalPhoto = photos.find(p => p.id === currentPhoto.id);
-    performAction('keep', originalPhoto);
-    toast({
-      title: "Photo kept",
-      description: "Added to Favorites",
-      duration: 1500,
-    });
+    try {
+      const originalPhoto = photos.find(p => p.id === currentPhoto.id);
+      performAction('keep', originalPhoto);
+      toast({
+        title: "Photo kept",
+        description: "Added to Favorites",
+        duration: 1500,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save to Favorites",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
   };
 
   const handleUndo = () => {
