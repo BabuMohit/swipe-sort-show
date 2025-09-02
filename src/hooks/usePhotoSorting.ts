@@ -4,6 +4,7 @@ export interface SortingAction {
   photoId: string;
   action: 'keep' | 'discard';
   timestamp: number;
+  photoName?: string;
 }
 
 export interface SortingStats {
@@ -13,7 +14,7 @@ export interface SortingStats {
   current: number;
 }
 
-export function usePhotoSorting(photos: string[]) {
+export function usePhotoSorting(photos: { id: string; dataUrl: string; name: string }[]) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [history, setHistory] = useState<SortingAction[]>([]);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -34,9 +35,10 @@ export function usePhotoSorting(photos: string[]) {
     setIsAnimating(true);
     
     const newAction: SortingAction = {
-      photoId: currentPhoto,
+      photoId: currentPhoto.id,
       action,
       timestamp: Date.now(),
+      photoName: currentPhoto.name,
     };
 
     setHistory(prev => [...prev, newAction]);

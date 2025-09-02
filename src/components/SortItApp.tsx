@@ -1,24 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PhotoCard } from './PhotoCard';
 import { ActionButtons } from './ActionButtons';
 import { ProgressIndicator } from './ProgressIndicator';
 import { StatsPanel } from './StatsPanel';
+import { PhotoUpload } from './PhotoUpload';
 import { Button } from './ui/button';
 import { usePhotoSorting } from '@/hooks/usePhotoSorting';
 import { useToast } from '@/hooks/use-toast';
-
-// Import sample images
-import sample1 from '@/assets/sample-1.jpg';
-import sample2 from '@/assets/sample-2.jpg';
-import sample3 from '@/assets/sample-3.jpg';
-import sample4 from '@/assets/sample-4.jpg';
-import sample5 from '@/assets/sample-5.jpg';
-
-const SAMPLE_PHOTOS = [sample1, sample2, sample3, sample4, sample5];
+import { PhotoStorage, UploadedPhoto } from '@/lib/photoStorage';
 
 export function SortItApp() {
   const [showStats, setShowStats] = useState(false);
+  const [photos, setPhotos] = useState<UploadedPhoto[]>([]);
   const { toast } = useToast();
+
+  // Transform photos for the sorting hook
+  const photoData = photos.map(photo => ({
+    id: photo.id,
+    dataUrl: photo.dataUrl,
+    name: photo.name,
+  }));
   
   const {
     currentPhoto,
@@ -30,7 +31,17 @@ export function SortItApp() {
     performAction,
     undo,
     reset,
-  } = usePhotoSorting(SAMPLE_PHOTOS);
+  } = usePhotoSorting(photoData);
+
+  // Load photos on mount
+  useEffect(() => {
+    const savedPhotos = PhotoStorage.getPhotos();
+    setPhotos(savedPhotos);
+  }, []);
+
+  const handlePhotosUploaded = (uploadedPhotos: UploadedPhoto[]) => {
+    setPhotos(uploadedPhotos);
+  };
 
   const handleSwipeLeft = () => {
     performAction('discard');
@@ -71,6 +82,29 @@ export function SortItApp() {
     });
   };
 
+  // Show upload screen if no photos
+  if (photos.length === 0) {
+    return (
+      <div className="min-h-screen bg-background p-4 flex flex-col items-center justify-center">
+        <div className="w-full max-w-md space-y-6">
+          <div className="text-center mb-6">
+            <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
+              Sort It
+            </h1>
+            <p className="text-muted-foreground">
+              Import your photos to start sorting
+            </p>
+          </div>
+          
+          <PhotoUpload 
+            onPhotosUploaded={handlePhotosUploaded}
+            existingPhotos={photos}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (isComplete) {
     return (
       <div className="min-h-screen bg-background p-4 flex flex-col items-center justify-center">
@@ -84,11 +118,17 @@ export function SortItApp() {
             </p>
           </div>
           
-          <StatsPanel 
-            kept={stats.kept}
-            discarded={stats.discarded}
-            total={stats.total}
-          />
+            <StatsPanel 
+              kept={stats.kept}
+              discarded={stats.discarded}
+              total={stats.total}
+            />
+            
+            <div className="bg-gradient-card rounded-lg p-3 text-center">
+              <p className="text-sm text-muted-foreground">
+                {photos.length} photos in collection
+              </p>
+            </div>
           
           <div className="space-y-3">
             <Button 
@@ -97,6 +137,15 @@ export function SortItApp() {
               size="lg"
             >
               Sort Again
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={() => setPhotos([])}
+              className="w-full min-h-[44px]"
+              size="lg"
+            >
+              📷 Import New Photos
             </Button>
             
             <Button 
@@ -118,7 +167,9 @@ export function SortItApp() {
                     key={index}
                     className="flex justify-between items-center text-sm p-2 bg-secondary rounded-lg"
                   >
-                    <span>Photo {index + 1}</span>
+                    <span className="truncate flex-1 mr-2" title={action.photoName}>
+                      {action.photoName || `Photo ${index + 1}`}
+                    </span>
                     <span className={action.action === 'keep' ? 'text-keep' : 'text-discard'}>
                       {action.action === 'keep' ? '❤️ Kept' : '❌ Discarded'}
                     </span>
@@ -166,6 +217,12 @@ export function SortItApp() {
             current={currentIndex}
             total={stats.total}
           />
+          
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">
+              Photo {currentIndex + 1} of {photos.length}
+            </p>
+          </div>
         </div>
       </header>
 
@@ -186,7 +243,7 @@ export function SortItApp() {
           <div className="relative min-h-[500px] flex items-center justify-center">
             {currentPhoto && (
               <PhotoCard
-                image={currentPhoto}
+                image={currentPhoto.dataUrl}
                 onSwipeLeft={handleSwipeLeft}
                 onSwipeRight={handleSwipeRight}
                 className="animate-bounce-in"
